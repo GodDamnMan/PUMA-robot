@@ -41,6 +41,7 @@ def T_i(theta, n, dh):
 
 
 
+
 dh = [{'d':.672,       'a': 0,         'alpha': -sp.pi/2, },
       {'d':.139,       'a': .431,      'alpha': 0},
       {'d': -.139,     'a': 0,         'alpha': sp.pi/2},
@@ -57,26 +58,28 @@ q = [Symbol('q' + str(i+1)) for i in range(6)]
 
 T = sp.Matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
 
-for i, q_i in enumerate(q):
-     T = T @ T_i(q_i, i, dh)
+
+
+T = T @ T_i(q[0], 0, dh)
+T = T @ T_i(q[1], 1, dh)
+T = T @ T_i(q[2], 2, dh)
+T = T @ T_i(   0, 3, dh)
+T = T @ T_i(q[3], 4, dh)
+T = T @ T_i(q[4], 5, dh)
+T = T @ T_i(q[5], 6, dh)
+
 
 T.simplify()
-print(*[i for i in T], sep='\n\n')
-
-exit(0)
-
 
 x = T[3]
 y = T[7]
 z = T[11]
 
-x_dot = [x.diff(i) for i in q]
-y_dot = [y.diff(i) for i in q]
-z_dot = [z.diff(i) for i in q]
+x_dot = [x.diff(i).simplify() for i in q]
+y_dot = [y.diff(i).simplify() for i in q]
+z_dot = [z.diff(i).simplify() for i in q]
 
-for j in [x_dot, y_dot, z_dot]:
-    for i in j:
-        i.simplify()
+
 
 # R = [[T[0], T[1], T[2]],
 #      [T[4], T[5], T[6]],
@@ -84,33 +87,14 @@ for j in [x_dot, y_dot, z_dot]:
 
 
 
-fi = sp.atan2(T[6], T[2])
-theta = sp.atan2(sp.sqrt(T[6]**2 + T[2]**2), T[10]) 
-psi = sp.atan2(T[9], -T[8])
+fi = sp.atan2(T[6], T[2]).simplify()
+theta = sp.atan2(sp.sqrt(T[6]**2 + T[2]**2), T[10]).simplify()
+psi = sp.atan2(T[9], -T[8]).simplify()
 
-
-
-exit(0)
-
-fi.simplify()
-theta.simplify()
-psi.simplify()
-
-fi_dot = [fi.diff(i) for i in q]
-theta_dot = [theta.diff(i) for i in q]
-psi_dot = [psi.diff(i) for i in q]
-
-# for j in [fi_dot, theta_dot, psi_dot]:
-#     for i in j:
-#         i.simplify()
+fi_dot = [fi.diff(i).simplify() for i in q]
+theta_dot = [theta.diff(i).simplify() for i in q]
+psi_dot = [psi.diff(i).simplify() for i in q]
 
 J = [x_dot, y_dot, z_dot, fi_dot, theta_dot, psi_dot]
-J_sub = []
 
-for i in range(6):
-    arr = []
-    for j in range(6):
-        arr.append(J[i][j].subs(q[2], sp.pi/2))
-    J_sub.append(arr)
-
-print(*J_sub, sep='\n\n')
+print('J = Matrix(', J, ')')
