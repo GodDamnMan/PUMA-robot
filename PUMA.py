@@ -51,7 +51,6 @@ class PUMA:
         else:
             e_fi = np.atan2(T[1,2], T[0,2])
             e_psi = np.atan2(T[2,1], -T[2,0])
-            # e_psi = np.arcsin(T[2,1] / np.sin(e_theta))
 
 
         end_effector = list(map(lambda x: float(x), list(origin) + ([e_fi, e_theta, e_psi])))
@@ -252,11 +251,10 @@ class PUMA:
 
 
 
-
 class StatefulPUMA(PUMA):
     def __init__(self):
         super().__init__()
-        self.theta = [0, 0, 0, 0, 0, 0]
+        self.theta = [2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi]
         self.ee = self.forward_kinematics(self.theta)
         
 
@@ -264,12 +262,15 @@ class StatefulPUMA(PUMA):
         return super().get_jacobian(self.theta)      # get the jacobian for current state
     
     def set_joints(self, theta) -> None:
-        self.theta = theta
-        self.ee = self.forward_kinematics(theta)     # automatically set the ee postion
+        for i, t in enumerate(theta):
+            if t == 0:
+                theta[i] = np.pi * 2
+        self.theta = theta.copy()
+        self.ee = self.forward_kinematics(self.theta)     # automatically set the ee postion
 
     def set_ee(self, ee_pos) -> None:
-        self.ee = ee_pos
-        self.theta = self.inverse_kinematics(ee_pos) # automatically set all the angles
+        self.ee = ee_pos.copy()
+        self.theta = self.inverse_kinematics(ee_pos)     # automatically set all the angles
 
 
     

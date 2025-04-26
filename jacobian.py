@@ -1,4 +1,7 @@
 
+q1, q2, q3, q4, q5, q6 = None
+
+
 J = [[-0.431*(sin(q2 + q3) + cos(q2))*sin(q1), 0.431*(-sin(q2) + cos(q2 + q3))*cos(q1), 0.431*cos(q1)*cos(q2 + q3), 0, 0, 0],
 [0.431*(sin(q2 + q3) + cos(q2))*cos(q1), 0.431*(-sin(q2) + cos(q2 + q3))*sin(q1), 0.431*sin(q1)*cos(q2 + q3), 0, 0, 0],
 [0, -0.431*sin(q2 + q3) - 0.431*cos(q2), -0.431*sin(q2 + q3), 0, 0, 0],

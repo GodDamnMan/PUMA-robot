@@ -61,6 +61,10 @@ for i, q_i in enumerate(q):
      T = T @ T_i(q_i, i, dh)
 
 T.simplify()
+print(*[i for i in T], sep='\n\n')
+
+exit(0)
+
 
 x = T[3]
 y = T[7]
@@ -78,9 +82,15 @@ for j in [x_dot, y_dot, z_dot]:
 #      [T[4], T[5], T[6]],
 #      [T[8], T[9], T[10]]]
 
+
+
 fi = sp.atan2(T[6], T[2])
 theta = sp.atan2(sp.sqrt(T[6]**2 + T[2]**2), T[10]) 
 psi = sp.atan2(T[9], -T[8])
+
+
+
+exit(0)
 
 fi.simplify()
 theta.simplify()

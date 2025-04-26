@@ -33,12 +33,12 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None, theta
     # Функция анимации
     def update(frame):
         global robot_line, frame_artists
-        # dt = frame * 0.05
-        # q2 = pi/2 * sin(dt)
-        # q1 = pi * sin(dt)
-        # q3 = pi/2 + sin(5*dt)
-        # theta = [q1, q2, q3, dt, dt, dt]
-        theta = [0, 0, np.pi/2, 0, 0, 0]
+        dt = frame * 0.05
+        q2 = np.pi/2 * np.sin(dt)
+        q1 = np.pi * np.sin(dt)
+        q3 = np.pi/2 + np.sin(5*dt)
+        theta = [0, 0, 0, dt, dt, 0]
+        # theta = [0, 0, np.pi/2, 0, 0, 0]
         points = Robot.forward_kinematics_points(theta)
 
 
@@ -97,6 +97,8 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
 
     if joints_velocity is None:
         joints_velocity = np.array([-5, 1, -.1, 0, 0, 0])    # default joints_velocity
+    else:
+        joints_velocity = np.array(joints_velocity)
 
 
     total = 20                                # sec in simulation
@@ -105,28 +107,29 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
 
     fig1, axs1 = plt.subplots(3, 2, figsize=(12, 9), sharex=True)
     axs1 = axs1.flatten() 
-    fig2, axs2 = plt.subplots(3, 2, figsize=(12, 9), sharex=True)
+    fig2, axs2 = plt.subplots(6, 2, figsize=(12, 9), sharex=True)
     axs2 = axs2.flatten()
 
     for dt, timestep in zip(dts, timesteps):
-        Robot.set_joints(theta0.copy())
-        positions = []       # XYZ
-        velocities = []      # vel of XYZ
-        joints = []          # thetas
+        Robot.set_joints(theta0)
+        positions = [Robot.ee]       # XYZ FTP
+        velocities = []      # vel of XYZ FTP
+        joints = [theta0]          # thetas
 
         for _ in range(timestep):
             ee_vel = Robot.move_joints(joints_velocity, dt)
             theta = Robot.theta.copy()
-            pos = Robot.ee.copy()[:3]
+            pos = Robot.ee.copy()
 
             joints.append(theta)
             positions.append(pos)
             velocities.append(ee_vel)
 
-        joints     = np.array(joints)
-        positions  = np.array(positions)
+        joints     = np.array(joints[:-1])     # for same initial condition and length as t
+        positions  = np.array(positions[:-1])    # same
         velocities = np.array(velocities)
         t = np.arange(timestep) * dt
+
 
         # plot joint angles
         for i, ax in enumerate(axs1):
@@ -140,14 +143,14 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
         axs1[-1].set_xlabel("Time [s]")
 
         # plot ee position
-        for i in range(3):
+        for i in range(6):
             axs2[2*i].plot(t, positions[:, i], label=f"Position dt={dt}")
-            axs2[2*i].set_ylabel(["X", "Y", "Z"][i] + " [m]")
+            axs2[2*i].set_ylabel(["X", "Y", "Z"][i] + " [m]" if i < 3 else ["Fi", "Theta", "Psi"][i%3] + " [rad]")
             axs2[2*i].grid(True)
             axs2[2*i].legend()
 
             axs2[2*i+1].plot(t, velocities[:, i], label=f"Velocity dt={dt}")
-            axs2[2*i+1].set_ylabel("v_" + ["X", "Y", "Z"][i] + " [m/s]")
+            axs2[2*i+1].set_ylabel("v_" + ["X", "Y", "Z"][i] + " [m/s]" if i < 3 else "w_" + ["Fi", "Theta", "Psi"][i%3] + " [rad/s]")
             axs2[2*i+1].grid(True)
             axs2[2*i+1].legend()
 
@@ -169,8 +172,9 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
         theta0 = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
 
     if ee_velocity is None:
-        ee_velocity = np.array([-.005, .01, -.001, 0, 0, 0])    # default joints_velocity
-
+        ee_velocity = np.array([-.005, .01, -.001, 0, 0, 0])    # default ee_velocity
+    else:
+        ee_velocity = np.array(ee_velocity)
 
     total = 20                                # sec in simulation
     dts = [1, 0.5, 0.01]                      # sec per iter
@@ -182,9 +186,9 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
     axs2 = axs2.flatten()
 
     for dt, timestep in zip(dts, timesteps):
-        Robot.set_joints(theta0.copy())
+        Robot.set_joints()
         positions = []       # XYZ
-        velocities = []      # vel of XYZ
+        velocities = []      # vel of thetas
         joints = []          # thetas
 
         for _ in range(timestep):
@@ -247,18 +251,18 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
 if __name__ == '__main__':
     Robot = StatefulPUMA()
 
-    Robot.tester()
-    plot_by_joint_movement(Robot)
+    # Robot.tester()
+    plot_by_joint_movement(Robot, theta0=[0,0,0,0,0,0], joints_velocity=[0,0,0,0,1,0])
     # plot_by_ee_movement(Robot)
     
     
     ''' choose one type of render '''
     
-    
+
     ''' first, w/ workspace '''
     # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
     # first_task_render(fig, ax, Robot = Robot)
 
     ''' second, w/o workspace '''
-    # first_task_render(Robot=Robot)
+    first_task_render(Robot=Robot)
     
