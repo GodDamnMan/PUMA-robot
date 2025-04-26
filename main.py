@@ -6,7 +6,7 @@ from PUMA import PUMA, StatefulPUMA
 
 robot_line = None
 frame_artists = []
-def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None, theta_arg:list = None):
+def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
     # Настройка 3D-графика
     fig, ax = None, None
     args = list(args)
@@ -89,6 +89,7 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None, theta
 
     plt.tight_layout()
     plt.show()
+
 
 
 def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints_velocity = None):
@@ -250,19 +251,23 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
 
 if __name__ == '__main__':
     Robot = StatefulPUMA()
+    # Robot.set_joints([0,0,0,0,np.pi*2,0])
 
-    # Robot.tester()
-    plot_by_joint_movement(Robot, theta0=[0,0,0,0,0,0], joints_velocity=[0,0,0,0,1,0])
+    Robot.inv_kinematics_tester()
+    # Robot.joint_motion_sanity_check()
+
+
+    plot_by_joint_movement(Robot, theta0=[0,0,0,0,np.pi*2,0], joints_velocity=[0,1,0,0,0,0])
     # plot_by_ee_movement(Robot)
     
     
     ''' choose one type of render '''
     
-
     ''' first, w/ workspace '''
     # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
     # first_task_render(fig, ax, Robot = Robot)
 
     ''' second, w/o workspace '''
-    first_task_render(Robot=Robot)
+    # first_task_render(Robot = Robot)
+    
     
