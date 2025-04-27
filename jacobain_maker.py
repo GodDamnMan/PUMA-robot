@@ -54,11 +54,7 @@ dh = [{'d':.672,       'a': 0,         'alpha': -sp.pi/2, },
 
 q = [Symbol('q' + str(i+1)) for i in range(6)]
 
-
-
 T = sp.Matrix([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])
-
-
 
 T = T @ T_i(q[0], 0, dh)
 T = T @ T_i(q[1], 1, dh)
@@ -67,7 +63,6 @@ T = T @ T_i(   0, 3, dh)
 T = T @ T_i(q[3], 4, dh)
 T = T @ T_i(q[4], 5, dh)
 T = T @ T_i(q[5], 6, dh)
-
 
 T.simplify()
 
@@ -83,8 +78,7 @@ z_dot = [z.diff(i).simplify() for i in q]
 
 # R = [[T[0], T[1], T[2]],
 #      [T[4], T[5], T[6]],
-#      [T[8], T[9], T[10]]]
-
+#      [T[8], T[9], T[10]]
 
 
 fi = sp.atan2(T[6], T[2]).simplify()
