@@ -6,6 +6,7 @@ from PUMA import PUMA, StatefulPUMA
 
 import warnings
 warnings.filterwarnings("ignore")
+# warnings.resetwarnings()
 
 robot_line = None
 frame_artists = []
@@ -100,7 +101,7 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
         theta0 = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
 
     if joints_velocity is None:
-        joints_velocity = np.array([-5, 1, -.1, 0, 0, 0])    # default joints_velocity
+        joints_velocity = np.array([-3, 1, -.1, 0, 0, 0])    # default joints_velocity
     else:
         joints_velocity = np.array(joints_velocity)
 
@@ -133,7 +134,7 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
         positions  = np.array(positions[:-1])    # same
         velocities = np.array(velocities)
         t = np.arange(timestep) * dt
-
+        ticks = range(total + 1)
 
         # plot joint angles
         for i, ax in enumerate(axs1):
@@ -142,6 +143,7 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
             ax.set_ylabel(f"q{i+1} deg")
             ax.grid(True)
             ax.legend()
+            ax.set_xticks(ticks)
 
         axs1[-2].set_xlabel("Time [s]")
         axs1[-1].set_xlabel("Time [s]")
@@ -152,11 +154,13 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
             axs2[2*i].set_ylabel(["X", "Y", "Z"][i] + " [m]" if i < 3 else ["Fi", "Theta", "Psi"][i%3] + " [rad]")
             axs2[2*i].grid(True)
             axs2[2*i].legend()
+            axs2[2*i].set_xticks(ticks)
 
             axs2[2*i+1].plot(t, velocities[:, i], label=f"Velocity dt={dt}")
             axs2[2*i+1].set_ylabel("v_" + ["X", "Y", "Z"][i] + " [m/s]" if i < 3 else "w_" + ["Fi", "Theta", "Psi"][i%3] + " [rad/s]")
             axs2[2*i+1].grid(True)
             axs2[2*i+1].legend()
+            axs2[2*i+1].set_xticks(ticks)
 
     axs2[-2].set_xlabel("Time [s]")
     axs2[-1].set_xlabel("Time [s]")
@@ -176,7 +180,7 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
         theta0 = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
 
     if ee_velocity is None:
-        ee_velocity = np.array([-.005, .01, -.001, 0, 0, 0])    # default ee_velocity
+        ee_velocity = np.array([-.005, .01, -.008, .0, .1, .0])    # default ee_velocity
     else:
         ee_velocity = np.array(ee_velocity)
 
@@ -185,58 +189,58 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
     timesteps = [int(total/i) for i in dts]   # iters in simulation
 
     fig1, axs1 = plt.subplots(3, 2, figsize=(12, 9), sharex=True)
-    axs1=axs1.fltten()
-    fig2, axs2 = plt.subplots(3, 2, figsize=(12, 9), sharex=True)
+    axs1=axs1.flatten()
+    fig2, axs2 = plt.subplots(6, 2, figsize=(12, 9), sharex=True)
     axs2 = axs2.flatten()
 
     for dt, timestep in zip(dts, timesteps):
-        Robot.set_joints()
-        positions = []       # XYZ
+        Robot.set_joints(theta0)
+        positions = [Robot.ee]       # XYZ
         velocities = []      # vel of thetas
-        joints = []          # thetas
+        joints = [theta0]          # thetas
 
         for _ in range(timestep):
-            try:
-                q_vel = Robot.move_end_effector(ee_velocity, dt)
-            except Exception:
-                break
-            # q_vel = Robot.move_end_effector(ee_velocity, dt)
+            q_vel = Robot.move_end_effector(ee_velocity, dt)
             theta = Robot.theta.copy()
-            pos = Robot.ee.copy()[:3]
+            pos = Robot.ee.copy()
 
             joints.append(theta)
             positions.append(pos)
             velocities.append(q_vel)
 
-        joints     = np.array(joints)
-        positions  = np.array(positions)
+        joints     = np.array(joints[:-1])     # for same initial condition and length as t
+        positions  = np.array(positions[:-1])    # same
         velocities = np.array(velocities)
         t = np.arange(timestep) * dt
-        t = t[:len(joints)]
+        ticks = range(total + 1)
 
-        # plot joint angles
-
+        # plot ee pos
         for i, ax in enumerate(axs1):
-            angles_deg = np.rad2deg(joints[:, i])
-            ax.plot(t, angles_deg, label=f"dt={dt}")
-            ax.set_ylabel(f"q{i+1} [deg]")
+            # angles_deg = np.rad2deg(joints[:, i])
+            ax.plot(t, positions[:, i], label=f"dt={dt}")
+            ax.set_ylabel(["X", "Y", "Z"][i] + " [m]" if i < 3 else ["Fi", "Theta", "Psi"][i%3] + " [rad]")
+            ax.set_xticks(ticks)
             ax.grid(True)
             ax.legend()
 
         axs1[-2].set_xlabel("Time [s]")
         axs1[-1].set_xlabel("Time [s]")
 
-        # plot ee position
-        for i in range(3):
-            axs2[2*i].plot(t, positions[:, i], label=f"Position dt={dt}")
-            axs2[2*i].set_ylabel(["X", "Y", "Z"][i] + " [m]")
+        # plot joint ang, vel
+        for i in range(6):
+            angles_deg = np.rad2deg(joints[:, i])
+            axs2[2*i].plot(t, angles_deg, label=f"Position dt={dt}")
+            axs2[2*i].set_ylabel(f"q{i+1} [deg]")
             axs2[2*i].grid(True)
             axs2[2*i].legend()
+            axs2[2*i].set_xticks(ticks)
 
-            axs2[2*i+1].plot(t, velocities[:, i], label=f"Velocity dt={dt}", linestyle='--')
-            axs2[2*i+1].set_ylabel("v_" + ["X", "Y", "Z"][i] + " [m/s]")
+            speed_deg = np.rad2deg(velocities[:, i])
+            axs2[2*i+1].plot(t, speed_deg, label=f"Angular speed dt={dt}")
+            axs2[2*i+1].set_ylabel(f"q{i+1} [deg/s]")
             axs2[2*i+1].grid(True)
             axs2[2*i+1].legend()
+            axs2[2*i+1].set_xticks(ticks)
     
     axs2[-2].set_xlabel("Time [s]")
     axs2[-1].set_xlabel("Time [s]")
@@ -244,8 +248,8 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
     for axs in (axs1, axs2):
         axs[-1].set_xlabel("Time [s]")
 
-    fig1.suptitle("Joint angles over time")
-    fig2.suptitle("End-effector position and velocity over time")
+    fig2.suptitle("Joint angles and angular velocities over time")
+    fig1.suptitle("End-effector position over time")
     plt.tight_layout()
     plt.show()
 
@@ -259,8 +263,8 @@ if __name__ == '__main__':
     # Robot.inv_kinematics_tester()
     # Robot.joint_motion_sanity_check()
 
-    # plot_by_joint_movement(Robot, theta0=[0,0,0,0,np.pi*2,0], joints_velocity=[0,1,0,0,0,0])
-    # plot_by_ee_movement(Robot)
+    plot_by_joint_movement(Robot)
+    plot_by_ee_movement(Robot)
     
     
     ''' choose one type of render '''

@@ -259,18 +259,17 @@ class PUMA:
 class StatefulPUMA(PUMA):
     def __init__(self):
         super().__init__()
-        # self.theta = [2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi, 2*np.pi]
+
         self.theta = [0,0,0,0,0,0]
         self.ee = self.forward_kinematics(self.theta)
+
+        self.is_unlocked = True
         
 
     def get_jacobian(self) -> list:
         return super().get_jacobian(self.theta)      # get the jacobian for current state
     
     def set_joints(self, theta) -> None:
-        # for i, t in enumerate(theta):
-        #     if t == 0:
-        #         theta[i] = np.pi * 2
         self.theta = theta.copy()
         self.ee = self.forward_kinematics(self.theta)     # automatically set the ee postion
 
@@ -292,29 +291,23 @@ class StatefulPUMA(PUMA):
         return J @ vel
 
 
-    def move_end_effector(self, vel, dt) -> list:    # simulate the movement of robot by ee velocity
-        #TODO what if unreachebale?
-        if vel is not np.array:
-            vel = np.array(vel)
-        J_inv = np.linalg.pinv(self.get_jacobian())
-        self.ee += vel * dt
-        self.theta += J_inv @ vel * dt
+    def move_end_effector(self, vel_target, dt) -> list:    # simulate the movement of robot by ee velocity
+        if vel_target is not np.array:
+            vel_target = np.array(vel_target)
 
-        return J_inv @ vel
+        J = self.get_jacobian()
+        J_inv = np.linalg.inv(J)
+        vel_q = J_inv @ vel_target
 
+        if np.max(np.abs(vel_q)) > 2*np.pi:         # if angular velocity of any joint is too high (higher than 2pi)
+            vel_q = np.array([0,0,0,0,0,0])         # then definitely smth went wrong (maybe ee is out of bound), so disable the robot from moving
+                                                    
+        vel_ee = J @ vel_q
+        self.ee += vel_ee * dt
+        self.theta += vel_q * dt
 
+        return vel_q
 
-    def _angle_compare(self, a, b):
-        c1, c2, c3 = np.rad2deg(a) % 360 
-        d1, d2, d3 = np.rad2deg(b) % 360
-        c1 = c1 if c1 < 180 else 180 - c1 % 180
-        c2 = c2 if c2 < 180 else 180 - c2 % 180
-        c3 = c3 if c3 < 180 else 180 - c3 % 180
-        d1 = d1 if d1 < 180 else 180 - d1 % 180
-        d2 = d2 if d2 < 180 else 180 - d2 % 180
-        d3 = d3 if d3 < 180 else 180 - d3 % 180
-        
-        return np.array([c1- d1, c2-d2,c3-d3])
 
 
     def joint_motion_sanity_check(self, n = 1000):
