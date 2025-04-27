@@ -80,7 +80,7 @@ z_dot = [z.diff(i).simplify() for i in q]
 #      [T[4], T[5], T[6]],
 #      [T[8], T[9], T[10]]
 
-
+#TODO если нужны другие углы
 fi = sp.atan2(T[6], T[2]).simplify()
 theta = sp.atan2(sp.sqrt(T[6]**2 + T[2]**2), T[10]).simplify()
 psi = sp.atan2(T[9], -T[8]).simplify()

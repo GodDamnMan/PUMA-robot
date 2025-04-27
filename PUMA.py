@@ -130,6 +130,7 @@ class PUMA:
         theta4 = 0
         theta5 = 0
         theta6 = 0
+        
         # TODO если нужны другие углы
         T36 = Ts.transpose() @ _T06
         theta5 = np.atan2(np.sqrt(T36[0,2]**2 + T36[1,2]**2),T36[2,2])
@@ -229,7 +230,7 @@ class PUMA:
     def get_jacobian(self, theta:list):
         q1, q2, q3, q4, q5, _ = theta
 
-
+        #TODO
         J = [[-0.056*sin(q1)*sin(q5)*cos(q4)*cos(q2 + q3) - 0.056*sin(q1)*sin(q2 + q3)*cos(q5) - 0.431*sin(q1)*sin(q2 + q3) - 0.431*sin(q1)*cos(q2) - 0.056*sin(q4)*sin(q5)*cos(q1), (-0.431*sin(q2) - 0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*cos(q1), (-0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*cos(q1), -0.056*(sin(q1)*cos(q4) + sin(q4)*cos(q1)*cos(q2 + q3))*sin(q5), -0.056*sin(q1)*sin(q4)*cos(q5) - 0.056*sin(q5)*sin(q2 + q3)*cos(q1) + 0.056*cos(q1)*cos(q4)*cos(q5)*cos(q2 + q3), 0],
             [-0.056*sin(q1)*sin(q4)*sin(q5) + 0.056*sin(q5)*cos(q1)*cos(q4)*cos(q2 + q3) + 0.056*sin(q2 + q3)*cos(q1)*cos(q5) + 0.431*sin(q2 + q3)*cos(q1) + 0.431*cos(q1)*cos(q2), (-0.431*sin(q2) - 0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*sin(q1), (-0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*sin(q1), 0.056*(-sin(q1)*sin(q4)*cos(q2 + q3) + cos(q1)*cos(q4))*sin(q5), -0.056*sin(q1)*sin(q5)*sin(q2 + q3) + 0.056*sin(q1)*cos(q4)*cos(q5)*cos(q2 + q3) + 0.056*sin(q4)*cos(q1)*cos(q5), 0],
             [0, -0.056*sin(q5)*cos(q4)*cos(q2 + q3) - 0.056*sin(q2 + q3)*cos(q5) - 0.431*sin(q2 + q3) - 0.431*cos(q2), -0.056*sin(q5)*cos(q4)*cos(q2 + q3) - 0.056*sin(q2 + q3)*cos(q5) - 0.431*sin(q2 + q3), 0.056*sin(q4)*sin(q5)*sin(q2 + q3), -0.056*sin(q5)*cos(q2 + q3) - 0.056*sin(q2 + q3)*cos(q4)*cos(q5), 0],
@@ -296,7 +297,7 @@ class StatefulPUMA(PUMA):
             vel_target = np.array(vel_target)
 
         J = self.get_jacobian()
-        J_inv = np.linalg.inv(J)
+        J_inv = np.linalg.pinv(J)
         vel_q = J_inv @ vel_target
 
         if np.max(np.abs(vel_q)) > 2*np.pi:         # if angular velocity of any joint is too high (higher than 2pi)
@@ -336,3 +337,19 @@ class StatefulPUMA(PUMA):
         print('Jacobian motion passed', n, 'iterations')
         print('last error', p, f)
         return True
+
+
+if __name__ == '__main__':
+    r = StatefulPUMA()
+
+    r.set_joints([0,0,np.pi/2,0,0,0])
+
+    J = np.round(r.get_jacobian(), 4)
+
+    print(J)
+    print('-----------------------------------------')
+
+    for i in range(6):
+        for j in range(6):
+            print(J[i][j], end=' ')
+        print('0')

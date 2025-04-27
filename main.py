@@ -42,7 +42,6 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
         q1 = np.pi * np.sin(dt)
         q3 = np.pi/2 + np.sin(5*dt)
         theta = [0, 0, 0, dt, dt, 0]
-        # theta = [0, 0, np.pi/2, 0, 0, 0]
         points = Robot.forward_kinematics_points(theta)
 
 
@@ -95,7 +94,7 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
     plt.show()
 
 
-def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = None):
+def second_task_render(*args, basis_visible:bool = False, Robot:StatefulPUMA = None):
     # Настройка 3D-графика
     fig, ax = None, None
     args = list(args)
@@ -119,12 +118,12 @@ def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = No
         robot_line, = ax.plot([], [], [], 'ko-', lw=3, markersize=8)
         return [robot_line]
     
-    Robot.set_joints([0,0,0,0,1,0])
+    Robot.set_joints([0,0,0,0,np.pi/2,0])
     # Функция анимации
     def update(frame):
         global robot_line, frame_artists
 
-        Robot.move_end_effector([-.35 * np.sin(frame / 100 * np.pi), 0, 0, 0, 0, 0], 0.05)
+        Robot.move_end_effector([-.1, 0, 0, 0, 0, 0], 0.05)
         theta = Robot.theta
         points = Robot.forward_kinematics_points(theta)
 
@@ -344,7 +343,7 @@ if __name__ == '__main__':
     
 
     # Robot.inv_kinematics_tester()
-    # Robot.joint_motion_sanity_check()
+    Robot.joint_motion_sanity_check(100)
 
     plot_by_joint_movement(Robot)
     plot_by_ee_movement(Robot)
@@ -359,6 +358,6 @@ if __name__ == '__main__':
     # first_task_render(Robot = Robot)
 
     ''' moving by Jacobian '''
-    second_task_render(Robot=Robot)
+    second_task_render(Robot=Robot, basis_visible=True)
     
     
