@@ -95,6 +95,90 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
     plt.show()
 
 
+def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = None):
+    # Настройка 3D-графика
+    fig, ax = None, None
+    args = list(args)
+    if len(args) != 0:
+        fig = args[0]
+        ax = args[1]
+    else:
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_xlim([-1, 1])
+        ax.set_ylim([-1, 1])
+        ax.set_zlim([0, 1.5])
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_title('PUMA 560 Robot Animation')
+
+
+    def init():
+        global robot_line
+        robot_line, = ax.plot([], [], [], 'ko-', lw=3, markersize=8)
+        return [robot_line]
+    
+    Robot.set_joints([0,0,0,0,1,0])
+    # Функция анимации
+    def update(frame):
+        global robot_line, frame_artists
+
+        Robot.move_end_effector([-.35 * np.sin(frame / 100 * np.pi), 0, 0, 0, 0, 0], 0.05)
+        theta = Robot.theta
+        points = Robot.forward_kinematics_points(theta)
+
+
+        # Соединяем точки
+        x = [p[0] for p in points]
+        y = [p[1] for p in points]
+        z = [p[2] for p in points]
+
+        robot_line.set_data(x, y)
+        robot_line.set_3d_properties(z)
+
+
+
+        if basis_visible:
+            # Очистка предыдущих кадров
+            for artist in frame_artists:
+                artist.remove()
+            frame_artists = []
+            basises = Robot._get_basises(theta)
+            # Отрисовка систем координат
+            scale = 0.2
+            for i, basis in enumerate(basises):
+                origin = basis[:3, 3]
+
+                # Создаем новые линии для осей
+                x_line, = ax.plot([origin[0], origin[0] + basis[0,0]*scale],
+                                 [origin[1], origin[1] + basis[1,0]*scale],
+                                 [origin[2], origin[2] + basis[2,0]*scale], 'r-', lw=2)
+                y_line, = ax.plot([origin[0], origin[0] + basis[0,1]*scale],
+                                 [origin[1], origin[1] + basis[1,1]*scale],
+                                 [origin[2], origin[2] + basis[2,1]*scale], 'g-', lw=2)
+                z_line, = ax.plot([origin[0], origin[0] + basis[0,2]*scale],
+                                 [origin[1], origin[1] + basis[1,2]*scale],
+                                 [origin[2], origin[2] + basis[2,2]*scale], 'b-', lw=2)
+
+                # Добавляем подписи
+                label = ax.text(origin[0], origin[1], origin[2], f'J{i}', fontsize=10)
+
+                frame_artists.extend([x_line, y_line, z_line, label])
+
+
+        fig.canvas.draw()
+        return [robot_line] + frame_artists
+
+    # Запуск анимации
+    ani = FuncAnimation(fig, update, frames=200, init_func=init,
+                        blit=True, interval=50, repeat=True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+
 
 def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints_velocity = None):
     if theta0 is None:
@@ -173,7 +257,6 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
     fig2.suptitle("End-effector position over time")
     plt.tight_layout()
     plt.show()
-
 
 def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_velocity = None):
     if theta0 is None:
@@ -258,7 +341,7 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
 
 if __name__ == '__main__':
     Robot = StatefulPUMA()
-    Robot.set_joints([0,0,0,0,0,0])
+    
 
     # Robot.inv_kinematics_tester()
     # Robot.joint_motion_sanity_check()
@@ -268,11 +351,14 @@ if __name__ == '__main__':
     
     
     ''' choose one type of render '''
-    ''' first, w/ workspace '''
+    ''' moving chaoticly, w/ workspace '''
     # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
     # first_task_render(fig, ax, Robot = Robot)
 
-    ''' second, w/o workspace '''
+    ''' moving chaoticly, w/o workspace '''
     # first_task_render(Robot = Robot)
+
+    ''' moving by Jacobian '''
+    second_task_render(Robot=Robot)
     
     
