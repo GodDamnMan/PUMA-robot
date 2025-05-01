@@ -8,6 +8,10 @@ import warnings
 warnings.filterwarnings("ignore")
 # warnings.resetwarnings()
 
+
+
+
+
 robot_line = None
 frame_artists = []
 def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
@@ -94,7 +98,6 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
     plt.tight_layout()
     plt.show()
 
-
 def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = None):
     # Настройка 3D-графика
     fig, ax = None, None
@@ -177,17 +180,14 @@ def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = No
     plt.tight_layout()
     plt.show()
 
+def plot_by_joint_movement(Robot:StatefulPUMA = None, theta_init:list = None, theta_dot = None):
+    if theta_init is None:
+        theta_init = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
 
-
-
-def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints_velocity = None):
-    if theta0 is None:
-        theta0 = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
-
-    if joints_velocity is None:
-        joints_velocity = np.array([-3, 1, -.1, 0, 0, 0])    # default joints_velocity
+    if theta_dot is None:
+        theta_dot = np.array([-3, 1, -.1, 0, 0, 0])    # default joints_velocity
     else:
-        joints_velocity = np.array(joints_velocity)
+        theta_dot = np.array(theta_dot)
 
 
     total = 20                                # sec in simulation
@@ -200,13 +200,13 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
     axs2 = axs2.flatten()
 
     for dt, timestep in zip(dts, timesteps):
-        Robot.set_joints(theta0)
+        Robot.set_joints(theta_init)
         positions = [Robot.ee]       # XYZ FTP
         velocities = []      # vel of XYZ FTP
-        joints = [theta0]          # thetas
+        joints = [theta_init]          # thetas
 
         for _ in range(timestep):
-            ee_vel = Robot.move_joints(joints_velocity, dt)
+            ee_vel = Robot.move_joints(theta_dot, dt)
             theta = Robot.theta.copy()
             pos = Robot.ee.copy()
 
@@ -258,14 +258,14 @@ def plot_by_joint_movement(Robot:StatefulPUMA = None, theta0:list = None, joints
     plt.tight_layout()
     plt.show()
 
-def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_velocity = None):
-    if theta0 is None:
-        theta0 = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
+def plot_by_ee_movement(Robot:StatefulPUMA = None, theta_init:list = None, ee_dot = None):
+    if theta_init is None:
+        theta_init = np.deg2rad([30, -45, 60, 45, -30, 10])   # default theta0
 
-    if ee_velocity is None:
-        ee_velocity = np.array([-.005, .01, -.008, .0, .1, .0])    # default ee_velocity
+    if ee_dot is None:
+        ee_dot = np.array([-.005, .01, -.008, .0, .1, .0])    # default ee_velocity
     else:
-        ee_velocity = np.array(ee_velocity)
+        ee_dot = np.array(ee_dot)
 
     total = 20                                # sec in simulation
     dts = [1, 0.5, 0.01]                      # sec per iter
@@ -277,13 +277,13 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
     axs2 = axs2.flatten()
 
     for dt, timestep in zip(dts, timesteps):
-        Robot.set_joints(theta0)
+        Robot.set_joints(theta_init)
         positions = [Robot.ee]       # XYZ
         velocities = []      # vel of thetas
-        joints = [theta0]          # thetas
+        joints = [theta_init]          # thetas
 
         for _ in range(timestep):
-            q_vel = Robot.move_end_effector(ee_velocity, dt)
+            q_vel = Robot.move_end_effector(ee_dot, dt)
             theta = Robot.theta.copy()
             pos = Robot.ee.copy()
 
@@ -336,61 +336,75 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
     plt.tight_layout()
     plt.show()
 
-puma = PUMA()
 
-q0 = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
-qf = [np.pi/6, -np.pi/6, np.pi/3, -np.pi/4, np.pi/3, np.pi/4]
-q_dot_max = [1] * 6
-q_ddot_max = [2] * 6
+def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:list = None, theta_dot_max:list = None, theta_ddot_max:list = None):
+    if theta_init is None:
+        theta_init = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
+    
+    if theta_final is None:
+        theta_final = [np.pi/6, -np.pi/6, np.pi/3, -np.pi/4, np.pi/3, np.pi/4]
 
-t_const, q_const, _, _ = PUMA.pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt = 0.0001)
-t_disc, q_disc, _, _ = PUMA.pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt = 1/120)
+    if theta_dot_max is None:
+        theta_dot_max = [1] * 6
 
-x_cont = [puma.forward_kinematics(qi) for qi in q_const]
-x_disc = [puma.forward_kinematics(qi) for qi in q_disc]
+    if theta_ddot_max is None:
+        theta_ddot_max = [2] * 6
 
-x_cont = np.array(x_cont)
-x_disc = np.array(x_disc)
+    _, q_const, _, _ = PUMA.pos_vel_acc(theta_init, theta_final, theta_dot_max, theta_ddot_max, dt = 0.0001)
+    t, q_disc, Q_dot, Q_ddot = PUMA.pos_vel_acc(theta_init, theta_final, theta_dot_max, theta_ddot_max, dt = 1/120)
 
-min_len = min(len(x_cont), len(x_disc))
+    PUMA.plot_trajectories(t, q_disc, Q_dot, Q_ddot)
 
-x_cont_trimmed = np.array(x_cont[:min_len])[:, :3]
-x_disc_trimmed = np.array(x_disc[:min_len])[:, :3]
+    x_cont = [Robot.forward_kinematics(qi) for qi in q_const]
+    x_disc = [Robot.forward_kinematics(qi) for qi in q_disc]
 
-error = np.linalg.norm(x_cont_trimmed - x_disc_trimmed, axis=1)
+    x_cont = np.array(x_cont)
+    x_disc = np.array(x_disc)
 
-t, Q, Q_dot, Q_ddot = PUMA.pos_vel_acc(q0, qf, q_dot_max, q_ddot_max)
-PUMA.plot_trajectories(t, Q, Q_dot, Q_ddot)
+    min_len = min(len(x_cont), len(x_disc))
 
-# print(error)
+    x_cont_trimmed = np.array(x_cont[:min_len])[:, :3]
+    x_disc_trimmed = np.array(x_disc[:min_len])[:, :3]
 
-plt.plot(error)
-plt.title("Error b/w cont and disc")
-plt.xlabel("t(s)")
-plt.ylabel("error(m)")
-plt.grid(True)
-plt.show()
+    error = np.linalg.norm(x_cont_trimmed - x_disc_trimmed, axis=1)
 
-# if __name__ == '__main__':
-#     Robot = StatefulPUMA()
+    plt.plot(error)
+    plt.title("Error b/w cont and disc")
+    plt.xlabel("t(s)")
+    plt.ylabel("error(m)")
+    plt.grid(True)
+    plt.show()
+
+
+
+
+
+
+if __name__ == '__main__':
+    Robot = StatefulPUMA()
     
 
-#     # Robot.inv_kinematics_tester()
-#     # Robot.joint_motion_sanity_check()
+    # Robot.inv_kinematics_tester()
+    # Robot.joint_motion_sanity_check()
 
-#     plot_by_joint_movement(Robot)
-#     plot_by_ee_movement(Robot)
+    # plot_by_joint_movement(Robot)
+    # plot_by_ee_movement(Robot)
     
+
+    trapezoidal_in_joint_space(Robot)
+
     
-#     ''' choose one type of render '''
-#     ''' moving chaoticly, w/ workspace '''
-#     # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
-#     # first_task_render(fig, ax, Robot = Robot)
+    ''' choose one type of render '''
+    ''' moving chaoticly, w/ workspace '''
+    # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
+    # first_task_render(fig, ax, Robot = Robot)
 
-#     ''' moving chaoticly, w/o workspace '''
-#     # first_task_render(Robot = Robot)
+    ''' moving chaoticly, w/o workspace '''
+    # first_task_render(Robot = Robot)
 
-#     ''' moving by Jacobian '''
-#     second_task_render(Robot=Robot)
+    ''' moving by Jacobian '''
+    # second_task_render(Robot=Robot)
+
+
     
     

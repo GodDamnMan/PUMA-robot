@@ -279,6 +279,8 @@ class PUMA:
         
         return time, Q, Q_dot, Q_ddot
     
+
+
     def plot_trajectories(time, Q, Q_dot, Q_ddot):
         joint_count = Q.shape[1]
         fig, axs = plt.subplots(joint_count, 3, figsize=(12, 3 * joint_count), sharex=True)
@@ -308,6 +310,10 @@ class PUMA:
         plt.subplots_adjust(top=0.94)
         plt.show()
 
+
+
+
+
     def tester(self, n = 100):
         cnt = 0
         for _ in range(n):
@@ -330,8 +336,6 @@ class PUMA:
                 cnt += 1
 
         print(cnt, 'out of', n, 'tests passed')
-    
-
     
     def get_jacobian(self, theta:list):
         q1, q2, q3, q4, q5, _ = theta
