@@ -1,5 +1,6 @@
 import sympy as sp 
 from sympy import Symbol
+import numpy as np
 
 
 
@@ -80,7 +81,7 @@ z_dot = [z.diff(i).simplify() for i in q]
 #      [T[4], T[5], T[6]],
 #      [T[8], T[9], T[10]]
 
-#TODO если нужны другие углы
+
 fi = sp.atan2(T[6], T[2]).simplify()
 theta = sp.atan2(sp.sqrt(T[6]**2 + T[2]**2), T[10]).simplify()
 psi = sp.atan2(T[9], -T[8]).simplify()
@@ -90,5 +91,3 @@ theta_dot = [theta.diff(i).simplify() for i in q]
 psi_dot = [psi.diff(i).simplify() for i in q]
 
 J = [x_dot, y_dot, z_dot, fi_dot, theta_dot, psi_dot]
-
-print('J = Matrix(', J, ')')

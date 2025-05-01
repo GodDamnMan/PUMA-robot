@@ -41,7 +41,6 @@ class PUMA:
     def forward_kinematics(self, theta):
         T = self._get_T06(theta)
         origin = T[:3, 3]
-        # TODO если нужны другие углы
         e_theta = np.atan2(np.sqrt(T[1,2]**2 + T[0,2]**2), T[2,2]) 
         e_fi = 0
         e_psi = 0
@@ -130,7 +129,6 @@ class PUMA:
         theta4 = 0
         theta5 = 0
         theta6 = 0
-        
         # TODO если нужны другие углы
         T36 = Ts.transpose() @ _T06
         theta5 = np.atan2(np.sqrt(T36[0,2]**2 + T36[1,2]**2),T36[2,2])
@@ -199,8 +197,116 @@ class PUMA:
             plt.show()
 
         return fig, ax
-    
 
+    # dt = 1/120 = 120 Hz
+    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt = 1/120):
+        profiles = []
+
+        for i in range(len(q0)):
+            # time to achieve max velocity
+            t_i = q_dot_max[i]/q_ddot_max[i]
+
+            # distnce for time t_i
+            delta_q = 0.5 * q_ddot_max[i] * t_i**2
+
+            # bias with direction
+            delta_q_total = abs(qf[i] - q0[i])
+            sign = np.sign(qf[i] - q0[i]) or 1
+
+            # triangle or trapezoid
+            if 2 * delta_q >= delta_q_total:
+                t_i = (delta_q_total/ q_ddot_max[i])**0.5
+                t_c = 0
+                T = 2 * t_i
+            else:
+                t_c = (delta_q_total - 2 * delta_q)/ q_dot_max[i]
+                T = 2 * t_i + t_c
+            
+            profiles.append({
+                'q0': q0[i],
+                'sign': sign,
+                't_i': t_i,
+                't_c': t_c,
+                'T': T,
+                'q_dot_max': q_dot_max[i],
+                'q_ddot_max': q_ddot_max[i]
+            })
+
+        # sync the movement of all joints
+        T_total = max(p['T'] for p in profiles)
+        time = np.arange(0, T_total + dt, dt)
+
+        Q = np.zeros((len(time), len(q0)))
+        Q_dot = np.zeros_like(Q)
+        Q_ddot = np.zeros_like(Q)
+
+        # creating trajectories
+        for i, profile in enumerate(profiles):
+            q0_i = profile['q0']
+            sign = profile['sign']
+            t_i = profile['t_i']
+            t_c = profile['t_c']
+            q_dot = profile['q_dot_max']
+            q_ddot = profile['q_ddot_max']
+
+            for j, t in enumerate(time):
+                # a_max
+                if t < t_i:
+                    qdd = q_ddot * sign
+                    qd = qdd * t
+                    q = 0.5 * qdd * t**2
+                # V = const
+                elif t < t_i + t_c:
+                    qdd = 0
+                    qd = q_dot * sign
+                    q = q_dot * (t - t_i) + 0.5 * q_ddot * t_i**2
+                # a_dec
+                elif t < t_i + t_c + t_i:
+                    t2 = t - t_i - t_c
+                    qdd = -q_ddot * sign
+                    qd = q_dot * sign + qdd * t2
+                    q = q_dot * t2 + 0.5 * qdd * t2**2 + q_dot * t_c + 0.5 * q_ddot * t_i**2
+                # arrived, everything is set to 0
+                else:
+                    qdd = 0
+                    qd = 0
+                    q = abs(qf[i] - q0[i])
+
+                # result
+                Q[j][i] = q0_i + sign * q
+                Q_dot[j][i] = qd
+                Q_ddot[j][i] = qdd
+        
+        return time, Q, Q_dot, Q_ddot
+    
+    def plot_trajectories(time, Q, Q_dot, Q_ddot):
+        joint_count = Q.shape[1]
+        fig, axs = plt.subplots(joint_count, 3, figsize=(12, 3 * joint_count), sharex=True)
+
+        for i in range(joint_count):
+            # Position
+            axs[i, 0].plot(time, Q[:, i])
+            axs[i, 0].set_ylabel(f'Joint {i+1}\nPos (rad)')
+            axs[i, 0].grid(True)
+
+            # Velocity
+            axs[i, 1].plot(time, Q_dot[:, i], color='orange')
+            axs[i, 1].set_ylabel(f'Joint {i+1}\nVel (rad/s)')
+            axs[i, 1].grid(True)
+
+            # Acceleration
+            axs[i, 2].plot(time, Q_ddot[:, i], color='green')
+            axs[i, 2].set_ylabel(f'Joint {i+1}\nAcc (rad/s²)')
+            axs[i, 2].grid(True)
+
+        axs[0, 0].set_title('Position')
+        axs[0, 1].set_title('Velocity')
+        axs[0, 2].set_title('Acceleration')
+
+        plt.tight_layout()
+        plt.suptitle("Joint Trajectories (per row: one joint)", fontsize=16, y=1.02)
+        plt.subplots_adjust(top=0.94)
+        plt.show()
 
     def tester(self, n = 100):
         cnt = 0
@@ -230,7 +336,7 @@ class PUMA:
     def get_jacobian(self, theta:list):
         q1, q2, q3, q4, q5, _ = theta
 
-        #TODO
+
         J = [[-0.056*sin(q1)*sin(q5)*cos(q4)*cos(q2 + q3) - 0.056*sin(q1)*sin(q2 + q3)*cos(q5) - 0.431*sin(q1)*sin(q2 + q3) - 0.431*sin(q1)*cos(q2) - 0.056*sin(q4)*sin(q5)*cos(q1), (-0.431*sin(q2) - 0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*cos(q1), (-0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*cos(q1), -0.056*(sin(q1)*cos(q4) + sin(q4)*cos(q1)*cos(q2 + q3))*sin(q5), -0.056*sin(q1)*sin(q4)*cos(q5) - 0.056*sin(q5)*sin(q2 + q3)*cos(q1) + 0.056*cos(q1)*cos(q4)*cos(q5)*cos(q2 + q3), 0],
             [-0.056*sin(q1)*sin(q4)*sin(q5) + 0.056*sin(q5)*cos(q1)*cos(q4)*cos(q2 + q3) + 0.056*sin(q2 + q3)*cos(q1)*cos(q5) + 0.431*sin(q2 + q3)*cos(q1) + 0.431*cos(q1)*cos(q2), (-0.431*sin(q2) - 0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*sin(q1), (-0.056*sin(q5)*sin(q2 + q3)*cos(q4) + 0.056*cos(q5)*cos(q2 + q3) + 0.431*cos(q2 + q3))*sin(q1), 0.056*(-sin(q1)*sin(q4)*cos(q2 + q3) + cos(q1)*cos(q4))*sin(q5), -0.056*sin(q1)*sin(q5)*sin(q2 + q3) + 0.056*sin(q1)*cos(q4)*cos(q5)*cos(q2 + q3) + 0.056*sin(q4)*cos(q1)*cos(q5), 0],
             [0, -0.056*sin(q5)*cos(q4)*cos(q2 + q3) - 0.056*sin(q2 + q3)*cos(q5) - 0.431*sin(q2 + q3) - 0.431*cos(q2), -0.056*sin(q5)*cos(q4)*cos(q2 + q3) - 0.056*sin(q2 + q3)*cos(q5) - 0.431*sin(q2 + q3), 0.056*sin(q4)*sin(q5)*sin(q2 + q3), -0.056*sin(q5)*cos(q2 + q3) - 0.056*sin(q2 + q3)*cos(q4)*cos(q5), 0],
@@ -297,7 +403,7 @@ class StatefulPUMA(PUMA):
             vel_target = np.array(vel_target)
 
         J = self.get_jacobian()
-        J_inv = np.linalg.pinv(J)
+        J_inv = np.linalg.inv(J)
         vel_q = J_inv @ vel_target
 
         if np.max(np.abs(vel_q)) > 2*np.pi:         # if angular velocity of any joint is too high (higher than 2pi)
@@ -337,19 +443,3 @@ class StatefulPUMA(PUMA):
         print('Jacobian motion passed', n, 'iterations')
         print('last error', p, f)
         return True
-
-
-if __name__ == '__main__':
-    r = StatefulPUMA()
-
-    r.set_joints([0,0,np.pi/2,0,0,0])
-
-    J = np.round(r.get_jacobian(), 4)
-
-    print(J)
-    print('-----------------------------------------')
-
-    for i in range(6):
-        for j in range(6):
-            print(J[i][j], end=' ')
-        print('0')

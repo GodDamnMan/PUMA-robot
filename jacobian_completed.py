@@ -1,6 +1,6 @@
 from sympy import sin, cos, sqrt, Matrix, Symbol
-import sympy as sp
-from numpy import pi, linalg
+
+from numpy import pi
 
 
 
@@ -19,31 +19,31 @@ J = Matrix(
         )
 
 
+# print(J == J.simplify())
+problem = J[27]
+
+# problem = problem.subs(q1, 0)
+# problem = problem.subs(q2, 0)
+# problem = problem.subs(q3, 0)
+# problem = problem.subs(q4, 0)
+# problem = problem.subs(q5, 0)
+# problem = problem.subs(q6, 0)
+
+print(problem.simplify())
+
+exit(0)
 
 J = J.subs(q1, 0)
 J = J.subs(q2, 0)
-J = J.subs(q3, pi/2)
+J = J.subs(q3, 0)
 J = J.subs(q4, 0)
-J = J.subs(q5, 1)
+J = J.subs(q5, 0)
 J = J.subs(q6, 0)
-
-
-# print(J[25].simplify())
-
-
-# a = -4*cos(2*q4) - 4*cos(2*q5) - 4*cos(2*q2 + 2*q3) + 2*cos(2*q4 - 2*q5) + 2*cos(2*q4 + 2*q5) + 2*cos(2*q2 + 2*q3 - 2*q4) + 2*cos(2*q2 + 2*q3 + 2*q4) - 6*cos(2*q2 + 2*q3 - 2*q5) - 6*cos(2*q2 + 2*q3 + 2*q5) - cos(2*q2 + 2*q3 - 2*q4 - 2*q5) - cos(2*q2 + 2*q3 - 2*q4 + 2*q5) + 4*cos(2*q2 + 2*q3 - q4 - 2*q5) - 4*cos(2*q2 + 2*q3 - q4 + 2*q5) + 4*cos(2*q2 + 2*q3 + q4 - 2*q5) - 4*cos(2*q2 + 2*q3 + q4 + 2*q5) - cos(2*q2 + 2*q3 + 2*q4 - 2*q5) - cos(2*q2 + 2*q3 + 2*q4 + 2*q5) + 20
-# print(sp.solve(a))
-# exit(0)
-
-
-for i in range(36):
-    if J[i] is sp.nan:
-        J[i] = 0
 
 
 for i in range(6):
     for j in range(6):
-        print(round(J[i * 6 + j], 4), end=' ')
-    print('0')
+        print(round(J[i * 6 + j], 4), ',   ', end='')
+    print()
 
 

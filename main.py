@@ -42,6 +42,7 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
         q1 = np.pi * np.sin(dt)
         q3 = np.pi/2 + np.sin(5*dt)
         theta = [0, 0, 0, dt, dt, 0]
+        # theta = [0, 0, np.pi/2, 0, 0, 0]
         points = Robot.forward_kinematics_points(theta)
 
 
@@ -94,7 +95,7 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
     plt.show()
 
 
-def second_task_render(*args, basis_visible:bool = False, Robot:StatefulPUMA = None):
+def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = None):
     # Настройка 3D-графика
     fig, ax = None, None
     args = list(args)
@@ -118,12 +119,12 @@ def second_task_render(*args, basis_visible:bool = False, Robot:StatefulPUMA = N
         robot_line, = ax.plot([], [], [], 'ko-', lw=3, markersize=8)
         return [robot_line]
     
-    Robot.set_joints([0,0,0,0,np.pi/2,0])
+    Robot.set_joints([0,0,0,0,1,0])
     # Функция анимации
     def update(frame):
         global robot_line, frame_artists
 
-        Robot.move_end_effector([-.1, 0, 0, 0, 0, 0], 0.05)
+        Robot.move_end_effector([-.35 * np.sin(frame / 100 * np.pi), 0, 0, 0, 0, 0], 0.05)
         theta = Robot.theta
         points = Robot.forward_kinematics_points(theta)
 
@@ -335,29 +336,61 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta0:list = None, ee_veloci
     plt.tight_layout()
     plt.show()
 
+puma = PUMA()
 
+q0 = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
+qf = [np.pi/6, -np.pi/6, np.pi/3, -np.pi/4, np.pi/3, np.pi/4]
+q_dot_max = [1] * 6
+q_ddot_max = [2] * 6
 
+t_const, q_const, _, _ = PUMA.pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt = 0.0001)
+t_disc, q_disc, _, _ = PUMA.pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt = 1/120)
 
-if __name__ == '__main__':
-    Robot = StatefulPUMA()
+x_cont = [puma.forward_kinematics(qi) for qi in q_const]
+x_disc = [puma.forward_kinematics(qi) for qi in q_disc]
+
+x_cont = np.array(x_cont)
+x_disc = np.array(x_disc)
+
+min_len = min(len(x_cont), len(x_disc))
+
+x_cont_trimmed = np.array(x_cont[:min_len])[:, :3]
+x_disc_trimmed = np.array(x_disc[:min_len])[:, :3]
+
+error = np.linalg.norm(x_cont_trimmed - x_disc_trimmed, axis=1)
+
+t, Q, Q_dot, Q_ddot = PUMA.pos_vel_acc(q0, qf, q_dot_max, q_ddot_max)
+PUMA.plot_trajectories(t, Q, Q_dot, Q_ddot)
+
+# print(error)
+
+plt.plot(error)
+plt.title("Error b/w cont and disc")
+plt.xlabel("t(s)")
+plt.ylabel("error(m)")
+plt.grid(True)
+plt.show()
+
+# if __name__ == '__main__':
+#     Robot = StatefulPUMA()
     
 
-    # Robot.inv_kinematics_tester()
-    Robot.joint_motion_sanity_check(100)
+#     # Robot.inv_kinematics_tester()
+#     # Robot.joint_motion_sanity_check()
 
-    plot_by_joint_movement(Robot)
-    plot_by_ee_movement(Robot)
+#     plot_by_joint_movement(Robot)
+#     plot_by_ee_movement(Robot)
     
     
-    ''' choose one type of render '''
-    ''' moving chaoticly, w/ workspace '''
-    # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
-    # first_task_render(fig, ax, Robot = Robot)
+#     ''' choose one type of render '''
+#     ''' moving chaoticly, w/ workspace '''
+#     # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
+#     # first_task_render(fig, ax, Robot = Robot)
 
-    ''' moving chaoticly, w/o workspace '''
-    # first_task_render(Robot = Robot)
+#     ''' moving chaoticly, w/o workspace '''
+#     # first_task_render(Robot = Robot)
 
-    ''' moving by Jacobian '''
-    second_task_render(Robot=Robot, basis_visible=True)
+#     ''' moving by Jacobian '''
+#     second_task_render(Robot=Robot)
     
     
