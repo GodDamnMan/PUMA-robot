@@ -199,87 +199,55 @@ class PUMA:
         return fig, ax
 
     # dt = 1/120 = 120 Hz
-    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt = 1/120):
+    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=1/120):
+        n = len(q0)
         profiles = []
 
-        for i in range(len(q0)):
-            # time to achieve max velocity
-            t_i = q_dot_max[i]/q_ddot_max[i]
-
-            # distnce for time t_i
-            delta_q = 0.5 * q_ddot_max[i] * t_i**2
-
-            # bias with direction
-            delta_q_total = abs(qf[i] - q0[i])
+        for i in range(n):
+            t_i = q_dot_max[i] / q_ddot_max[i]
+            delta_q_a = 0.5 * q_ddot_max[i] * t_i**2
+            total = abs(qf[i] - q0[i])
             sign = np.sign(qf[i] - q0[i]) or 1
 
-            # triangle or trapezoid
-            if 2 * delta_q >= delta_q_total:
-                t_i = (delta_q_total/ q_ddot_max[i])**0.5
+            # triangle or trapezoid profiles
+            if 2 * delta_q_a >= total:
+                t_i = np.sqrt(total / q_ddot_max[i])
                 t_c = 0
-                T = 2 * t_i
             else:
-                t_c = (delta_q_total - 2 * delta_q)/ q_dot_max[i]
-                T = 2 * t_i + t_c
-            
-            profiles.append({
-                'q0': q0[i],
-                'sign': sign,
-                't_i': t_i,
-                't_c': t_c,
-                'T': T,
-                'q_dot_max': q_dot_max[i],
-                'q_ddot_max': q_ddot_max[i]
-            })
+                t_c = (total - 2 * delta_q_a) / q_dot_max[i]
 
-        # sync the movement of all joints
-        T_total = max(p['T'] for p in profiles)
-        time = np.arange(0, T_total + dt, dt)
+            T = 2 * t_i + t_c
+            profiles.append((q0[i], sign, t_i, t_c, T, q_dot_max[i], q_ddot_max[i]))
 
-        Q = np.zeros((len(time), len(q0)))
+        # sync the time
+        T_total = max(p[4] for p in profiles)
+        N = int(np.ceil(T_total / dt)) + 1
+        time = np.linspace(0, T_total, N)
+
+        Q = np.zeros((N, n))
         Q_dot = np.zeros_like(Q)
-        Q_ddot = np.zeros_like(Q)
+        Q_ddot= np.zeros_like(Q)
 
-        # creating trajectories
-        for i, profile in enumerate(profiles):
-            q0_i = profile['q0']
-            sign = profile['sign']
-            t_i = profile['t_i']
-            t_c = profile['t_c']
-            q_dot = profile['q_dot_max']
-            q_ddot = profile['q_ddot_max']
+        # filling the trajectories
+        for i, (q0_i, sign, t_i, t_c, T, v_max, a_max) in enumerate(profiles):
+            # indexes of phase for all joints
+            idx1 = int(round(t_i / T_total * (N-1)))  
+            idx2 = int(round((t_i + t_c) / T_total * (N-1)))  
+            idx3 = int(round((2 * t_i + t_c) / T_total * (N-1)))  
 
-            for j, t in enumerate(time):
-                # a_max
-                if t < t_i:
-                    qdd = q_ddot * sign
-                    qd = qdd * t
-                    q = 0.5 * qdd * t**2
-                # V = const
-                elif t < t_i + t_c:
-                    qdd = 0
-                    qd = q_dot * sign
-                    q = q_dot * (t - t_i) + 0.5 * q_ddot * t_i**2
-                # a_dec
-                elif t < t_i + t_c + t_i:
-                    t2 = t - t_i - t_c
-                    qdd = -q_ddot * sign
-                    qd = q_dot * sign + qdd * t2
-                    q = q_dot * t2 + 0.5 * qdd * t2**2 + q_dot * t_c + 0.5 * q_ddot * t_i**2
-                # arrived, everything is set to 0
-                else:
-                    qdd = 0
-                    qd = 0
-                    q = abs(qf[i] - q0[i])
+            # acceleration
+            Q_ddot[:idx1, i] = a_max * sign
+            Q_ddot[idx1:idx2, i] = 0
+            Q_ddot[idx2:idx3, i] = -a_max * sign
+            Q_ddot[idx3:, i] = 0
 
-                # result
-                Q[j][i] = q0_i + sign * q
-                Q_dot[j][i] = qd
-                Q_ddot[j][i] = qdd
-        
+            # velocity from acceleration
+            Q_dot[:, i] = np.cumsum(Q_ddot[:, i]) * dt
+
+            # position from velocity
+            Q[:, i] = q0_i + np.cumsum(Q_dot[:, i]) * dt
+
         return time, Q, Q_dot, Q_ddot
-    
-
 
     def plot_trajectories(time, Q, Q_dot, Q_ddot):
         joint_count = Q.shape[1]
