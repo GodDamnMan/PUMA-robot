@@ -255,6 +255,8 @@ class PUMA:
 
         return time, Q, Q_dot, Q_ddot
 
+    
+
     def plot_trajectories(time, Q, Q_dot, Q_ddot):
         joint_count = Q.shape[1]
         fig, axs = plt.subplots(joint_count, 3, figsize=(12, 3 * joint_count), sharex=True)
