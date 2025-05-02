@@ -192,47 +192,91 @@ class PUMA:
     # dt = 1/120 = 120 Hz
     def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=1/120):
         n = len(q0)
-        profiles = []
-        for i in range(n):
-            t_i = q_dot_max[i] / q_ddot_max[i]
-            delta_q_a = 0.5 * q_ddot_max[i] * t_i**2
-            total = abs(qf[i] - q0[i])
-            sign = np.sign(qf[i] - q0[i]) or 1
-            if 2 * delta_q_a >= total:
-                t_i = np.sqrt(total / q_ddot_max[i])
-                t_c = 0
-            else:
-                t_c = (total - 2 * delta_q_a) / q_dot_max[i]
-            T = 2 * t_i + t_c
-            profiles.append((q0[i], qf[i], sign, t_i, t_c, T, q_dot_max[i], q_ddot_max[i]))
+        dq_list = []
+        T_individual = []
 
-        T_total = max(p[5] for p in profiles)
+        for i in range(n):
+            dq = abs(qf[i] - q0[i])
+            dq_list.append(dq)
+
+            T_tri = 2 * np.sqrt(dq / q_ddot_max[i])
+
+            t_ramp = q_dot_max[i] / q_ddot_max[i]
+            dq_ramp = 0.5 * q_ddot_max[i] * t_ramp**2
+
+            if dq < 2 * dq_ramp:
+                T_i = T_tri
+            else:
+                t_flat = (dq - 2 * dq_ramp) / q_dot_max[i]
+                T_i = 2 * t_ramp + t_flat
+
+            T_individual.append(T_i)
+
+        # Sync
+        T_total = max(T_individual)
         N = int(np.ceil(T_total / dt)) + 1
-        time = np.linspace(0, T_total, N)
+        time = np.arange(N) * dt
+        time[-1] = T_total
+
+        # 3. Trajectories
         Q = np.zeros((N, n))
         Q_dot = np.zeros_like(Q)
         Q_ddot = np.zeros_like(Q)
 
-        for i, (q0_i, qf_i, sign, t_i, t_c, T, v_max, a_max) in enumerate(profiles):
-            idx1 = int(round(t_i / T * (N - 1)))
-            idx2 = int(round((t_i + t_c) / T * (N - 1)))
-            idx3 = int(round((2 * t_i + t_c) / T * (N - 1)))
+        for i in range(n):
+            q_start = q0[i]
+            q_end = qf[i]
+            sign = np.sign(q_end - q_start) or 1
+            dq = dq_list[i]
+            a_max = q_ddot_max[i]
+            v_max = q_dot_max[i]
 
-            Q_ddot[:idx1, i] = a_max * sign
-            Q_ddot[idx1:idx2, i] = 0
-            Q_ddot[idx2:idx3, i] = -a_max * sign
+            t_ramp = T_total / 2
+            a_eff = dq / (t_ramp**2)
+            # triangular or trapezoidal
+            if a_eff <= a_max:
+                t_flat = 0
+                v_eff = a_eff * t_ramp
+            else:
+                a_eff = a_max
+                t_ramp = v_max / a_eff
+                dq_ramp = 0.5 * a_eff * t_ramp**2
+                t_flat = (dq - 2 * dq_ramp) / v_max
+                if t_flat < 0:
+                    t_flat = 0
+                    t_ramp = np.sqrt(dq / a_eff)
+                v_eff = a_eff * t_ramp
+                
+            pos = np.zeros(N)
+            vel = np.zeros(N)
+            acc = np.zeros(N)
 
-            vel = np.cumsum(Q_ddot[:, i]) * dt
-            vel[idx3:] = 0
-            vel = np.clip(vel, -v_max, v_max)
+            for k, t in enumerate(time):
+                if t < t_ramp:
+                    acc[k] = a_eff * sign
+                    vel[k] = acc[k] * t
+                    pos[k] = 0.5 * a_eff * t**2
+                elif t < t_ramp + t_flat:
+                    acc[k] = 0
+                    vel[k] = v_eff * sign
+                    pos[k] = 0.5 * a_eff * t_ramp**2 + v_eff * (t - t_ramp)
+                elif t <= T_total:
+                    t_dec = t - t_ramp - t_flat
+                    acc[k] = -a_eff * sign
+                    vel[k] = v_eff * sign + acc[k] * t_dec
+                    pos[k] = (
+                        0.5 * a_eff * t_ramp**2 +
+                        v_eff * t_flat +
+                        v_eff * t_dec +
+                        0.5 * -a_eff * t_dec**2
+                    )
 
-            pos = q0_i + np.cumsum(vel) * dt
-            lo = min(q0_i, qf_i)
-            hi = max(q0_i, qf_i)
-            pos = np.clip(pos, lo, hi)
-
+            Q[:, i] = q_start + sign * pos
             Q_dot[:, i] = vel
-            Q[:, i] = pos
+            Q_ddot[:, i] = acc
+            Q[0, :] = q0
+            Q_dot[0, :] = 0
+            Q_ddot[0, :] = 0
 
         return time, Q, Q_dot, Q_ddot
 
