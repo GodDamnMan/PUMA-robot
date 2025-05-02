@@ -193,56 +193,43 @@ class PUMA:
     def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=1/120):
         n = len(q0)
         profiles = []
-
         for i in range(n):
             t_i = q_dot_max[i] / q_ddot_max[i]
             delta_q_a = 0.5 * q_ddot_max[i] * t_i**2
             total = abs(qf[i] - q0[i])
             sign = np.sign(qf[i] - q0[i]) or 1
-
-            # triangle or trapezoid profiles
             if 2 * delta_q_a >= total:
                 t_i = np.sqrt(total / q_ddot_max[i])
                 t_c = 0
             else:
                 t_c = (total - 2 * delta_q_a) / q_dot_max[i]
-
             T = 2 * t_i + t_c
-            profiles.append((q0[i], sign, t_i, t_c, T, q_dot_max[i], q_ddot_max[i]))
+            profiles.append((q0[i], qf[i], sign, t_i, t_c, T, q_dot_max[i], q_ddot_max[i]))
 
-        # Sync all joints
-        T_total = max(p[4] for p in profiles)  # Max time
+        T_total = max(p[5] for p in profiles)
         N = int(np.ceil(T_total / dt)) + 1
         time = np.linspace(0, T_total, N)
-
         Q = np.zeros((N, n))
         Q_dot = np.zeros_like(Q)
         Q_ddot = np.zeros_like(Q)
 
-        # Filling the trajectories
-        for i, (q0_i, sign, t_i, t_c, T, v_max, a_max) in enumerate(profiles):
-            idx1 = int(round(t_i / T * (N-1)))  
-            idx2 = int(round((t_i + t_c) / T * (N-1)))  
-            idx3 = int(round((2 * t_i + t_c) / T * (N-1)))  
+        for i, (q0_i, qf_i, sign, t_i, t_c, T, v_max, a_max) in enumerate(profiles):
+            idx1 = int(round(t_i / T * (N - 1)))
+            idx2 = int(round((t_i + t_c) / T * (N - 1)))
+            idx3 = int(round((2 * t_i + t_c) / T * (N - 1)))
 
-            # Acceleration
             Q_ddot[:idx1, i] = a_max * sign
             Q_ddot[idx1:idx2, i] = 0
             Q_ddot[idx2:idx3, i] = -a_max * sign
-            Q_ddot[idx3:, i] = 0
 
-            # Velocity
             vel = np.cumsum(Q_ddot[:, i]) * dt
             vel[idx3:] = 0
+            vel = np.clip(vel, -v_max, v_max)
 
-            # Position
             pos = q0_i + np.cumsum(vel) * dt
-            total = abs(qf[i] - q0_i)
-
-            error = np.abs(qf[i] - pos[-1])
-            if error > 1e-5:
-                fix = total / (total + error)
-                pos = pos * fix
+            lo = min(q0_i, qf_i)
+            hi = max(q0_i, qf_i)
+            pos = np.clip(pos, lo, hi)
 
             Q_dot[:, i] = vel
             Q[:, i] = pos
