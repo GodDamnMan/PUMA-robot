@@ -274,12 +274,9 @@ class PUMA:
         axs[0, 2].set_title('Acceleration')
 
         plt.tight_layout()
-        plt.suptitle("Joint Trajectories (per row: one joint)", fontsize=16, y=1.02)
+        plt.suptitle("Joint Trajectories", fontsize=16, y=1.02)
         plt.subplots_adjust(top=0.94)
         plt.show()
-
-
-
 
 
     def tester(self, n = 100):
