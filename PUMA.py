@@ -239,12 +239,10 @@ class PUMA:
             pos = q0_i + np.cumsum(vel) * dt
             total = abs(qf[i] - q0_i)
 
-            # Removing jumps
-            if np.abs(vel[idx3-1]) >= v_max:
-                for j in range(idx3, len(vel)):
-                    if np.abs(vel[j]) < 1e-5:
-                        pos[j:] = q0_i + sign * total 
-                        break
+            error = np.abs(qf[i] - pos[-1])
+            if error > 1e-5:
+                fix = total / (total + error)
+                pos = pos * fix
 
             Q_dot[:, i] = vel
             Q[:, i] = pos
