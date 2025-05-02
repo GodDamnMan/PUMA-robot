@@ -198,8 +198,8 @@ class PUMA:
 
         return fig, ax
 
-    # dt = 1/120 = 120 Hz
-    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=1/120):
+    # dt = 1/120 = 120 Hz, for basics using very low
+    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=0.0001):
         n = len(q0)
         profiles = []
 
@@ -235,17 +235,23 @@ class PUMA:
             idx2 = int(round((t_i + t_c) / T_total * (N-1)))  
             idx3 = int(round((2 * t_i + t_c) / T_total * (N-1)))  
 
-            # acceleration
-            Q_ddot[:idx1, i] = a_max * sign
-            Q_ddot[idx1:idx2, i] = 0
-            Q_ddot[idx2:idx3, i] = -a_max * sign
-            Q_ddot[idx3:, i] = 0
+            Q_ddot[:idx1, i] =  a_max * sign
+            Q_ddot[idx1:idx2,i] = 0
+            Q_ddot[idx2:idx3,i] = -a_max * sign
+            Q_ddot[idx3: ,i] = 0
 
-            # velocity from acceleration
-            Q_dot[:, i] = np.cumsum(Q_ddot[:, i]) * dt
+            # vel
+            vel = np.cumsum(Q_ddot[:, i]) * dt
+            vel[idx3:] = 0
 
-            # position from velocity
-            Q[:, i] = q0_i + np.cumsum(Q_dot[:, i]) * dt
+            # position
+            pos = q0_i + np.cumsum(vel) * dt
+            total = abs(qf[i] - q0_i)
+            pos[idx3:] = q0_i + sign * total
+
+            # Result
+            Q_dot[:, i] = vel
+            Q[:, i] = pos
 
         return time, Q, Q_dot, Q_ddot
 
