@@ -198,8 +198,8 @@ class PUMA:
 
         return fig, ax
 
-    # dt = 1/120 = 120 Hz, for basics using very low
-    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=0.0001):
+    # dt = 1/120 = 120 Hz
+    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=1/120):
         n = len(q0)
         profiles = []
 
@@ -226,7 +226,7 @@ class PUMA:
 
         Q = np.zeros((N, n))
         Q_dot = np.zeros_like(Q)
-        Q_ddot= np.zeros_like(Q)
+        Q_ddot = np.zeros_like(Q)
 
         # filling the trajectories
         for i, (q0_i, sign, t_i, t_c, T, v_max, a_max) in enumerate(profiles):
@@ -238,7 +238,7 @@ class PUMA:
             Q_ddot[:idx1, i] =  a_max * sign
             Q_ddot[idx1:idx2,i] = 0
             Q_ddot[idx2:idx3,i] = -a_max * sign
-            Q_ddot[idx3: ,i] = 0
+            Q_ddot[idx3:, i] = 0
 
             # vel
             vel = np.cumsum(Q_ddot[:, i]) * dt
@@ -247,15 +247,19 @@ class PUMA:
             # position
             pos = q0_i + np.cumsum(vel) * dt
             total = abs(qf[i] - q0_i)
-            pos[idx3:] = q0_i + sign * total
+            
+            # Check if velocity is approaching zero after reaching v_max and starts decelerating
+            if np.abs(vel[idx3-1]) >= v_max:  # if velocity reaches v_max
+                for j in range(idx3, len(vel)):  # start checking after max velocity phase
+                    if np.abs(vel[j]) < 1e-5:  # check if speed is almost zero
+                        pos[j:] = q0_i + sign * total  # fix position at the target
+                        break
 
             # Result
             Q_dot[:, i] = vel
             Q[:, i] = pos
 
         return time, Q, Q_dot, Q_ddot
-
-    
 
     def plot_trajectories(time, Q, Q_dot, Q_ddot):
         joint_count = Q.shape[1]
