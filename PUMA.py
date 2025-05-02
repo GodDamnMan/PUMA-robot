@@ -210,8 +210,8 @@ class PUMA:
             T = 2 * t_i + t_c
             profiles.append((q0[i], sign, t_i, t_c, T, q_dot_max[i], q_ddot_max[i]))
 
-        # sync the time
-        T_total = max(p[4] for p in profiles)
+        # Sync all joints
+        T_total = max(p[4] for p in profiles)  # Max time
         N = int(np.ceil(T_total / dt)) + 1
         time = np.linspace(0, T_total, N)
 
@@ -219,34 +219,33 @@ class PUMA:
         Q_dot = np.zeros_like(Q)
         Q_ddot = np.zeros_like(Q)
 
-        # filling the trajectories
+        # Filling the trajectories
         for i, (q0_i, sign, t_i, t_c, T, v_max, a_max) in enumerate(profiles):
-            # indexes of phase for all joints
-            idx1 = int(round(t_i / T_total * (N-1)))  
-            idx2 = int(round((t_i + t_c) / T_total * (N-1)))  
-            idx3 = int(round((2 * t_i + t_c) / T_total * (N-1)))  
+            idx1 = int(round(t_i / T * (N-1)))  
+            idx2 = int(round((t_i + t_c) / T * (N-1)))  
+            idx3 = int(round((2 * t_i + t_c) / T * (N-1)))  
 
-            Q_ddot[:idx1, i] =  a_max * sign
-            Q_ddot[idx1:idx2,i] = 0
-            Q_ddot[idx2:idx3,i] = -a_max * sign
+            # Acceleration
+            Q_ddot[:idx1, i] = a_max * sign
+            Q_ddot[idx1:idx2, i] = 0
+            Q_ddot[idx2:idx3, i] = -a_max * sign
             Q_ddot[idx3:, i] = 0
 
-            # vel
+            # Velocity
             vel = np.cumsum(Q_ddot[:, i]) * dt
             vel[idx3:] = 0
 
-            # position
+            # Position
             pos = q0_i + np.cumsum(vel) * dt
             total = abs(qf[i] - q0_i)
-            
-            # Check if velocity is approaching zero after reaching v_max and starts decelerating
-            if np.abs(vel[idx3-1]) >= v_max:  # if velocity reaches v_max
-                for j in range(idx3, len(vel)):  # start checking after max velocity phase
-                    if np.abs(vel[j]) < 1e-5:  # check if speed is almost zero
-                        pos[j:] = q0_i + sign * total  # fix position at the target
+
+            # Removing jumps
+            if np.abs(vel[idx3-1]) >= v_max:
+                for j in range(idx3, len(vel)):
+                    if np.abs(vel[j]) < 1e-5:
+                        pos[j:] = q0_i + sign * total 
                         break
 
-            # Result
             Q_dot[:, i] = vel
             Q[:, i] = pos
 
