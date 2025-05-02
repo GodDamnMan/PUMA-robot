@@ -129,7 +129,6 @@ class PUMA:
         theta4 = 0
         theta5 = 0
         theta6 = 0
-        # TODO если нужны другие углы
         T36 = Ts.transpose() @ _T06
         theta5 = np.atan2(np.sqrt(T36[0,2]**2 + T36[1,2]**2),T36[2,2])
         if theta5 == 0:
@@ -142,14 +141,6 @@ class PUMA:
 
 
     def plot_workspace(self, samples=10000, show_plot=True):
-        """
-        Plot the reachable workspace of the PUMA robot.
-
-        Parameters:
-        - samples: number of random joint configurations to sample
-        - show_plot: whether to display the plot immediately
-        - save_path: if provided, save the plot to this path
-        """
         robot = PUMA()
         points = []
 
