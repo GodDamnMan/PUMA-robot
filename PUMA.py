@@ -190,7 +190,7 @@ class PUMA:
         return fig, ax
 
     # dt = 1/120 = 120 Hz
-    def pos_vel_acc(q0, qf, q_dot_max, q_ddot_max, dt=1/120):
+    def pos_vel_acc(self, q0, qf, q_dot_max, q_ddot_max, dt=1/120):
         n = len(q0)
         dq_list = []
         T_individual = []
@@ -286,7 +286,7 @@ class PUMA:
 
         return time, Q, Q_dot, Q_ddot
 
-    def plot_trajectories(time, Q, Q_dot, Q_ddot):
+    def plot_trajectories(self, time, Q, Q_dot, Q_ddot):
         joint_count = Q.shape[1]
         fig, axs = plt.subplots(joint_count, 3, figsize=(12, 3 * joint_count), sharex=True)
 
