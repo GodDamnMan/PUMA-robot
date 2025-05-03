@@ -218,7 +218,7 @@ class PUMA:
         time = np.arange(N) * dt
         time[-1] = T_total
 
-        # 3. Trajectories
+        # Trajectories
         Q = np.zeros((N, n))
         Q_dot = np.zeros_like(Q)
         Q_ddot = np.zeros_like(Q)
@@ -234,7 +234,7 @@ class PUMA:
             t_ramp = T_total / 2
             a_eff = dq / (t_ramp**2)
             # triangular or trapezoidal
-            if a_eff <= a_max:
+            if a_eff <= a_max and (a_eff * t_ramp <= v_max):
                 t_flat = 0
                 v_eff = a_eff * t_ramp
             else:
@@ -246,7 +246,7 @@ class PUMA:
                     t_flat = 0
                     t_ramp = np.sqrt(dq / a_eff)
                 v_eff = a_eff * t_ramp
-                
+
             pos = np.zeros(N)
             vel = np.zeros(N)
             acc = np.zeros(N)
@@ -270,13 +270,19 @@ class PUMA:
                         v_eff * t_dec +
                         0.5 * -a_eff * t_dec**2
                     )
-
+                    
+            pos[-1] = dq
+            vel[-1] = 0
+            acc[-1] = 0
             Q[:, i] = q_start + sign * pos
             Q_dot[:, i] = vel
             Q_ddot[:, i] = acc
-            Q[0, :] = q0
-            Q_dot[0, :] = 0
-            Q_ddot[0, :] = 0
+            Q[0, i] = q_start
+            Q[-1, i] = q_end
+            Q_dot[0, i] = 0
+            Q_dot[-1, i] = 0
+            Q_ddot[0, i] = 0
+            Q_ddot[-1, i] = 0
 
         return time, Q, Q_dot, Q_ddot
 
