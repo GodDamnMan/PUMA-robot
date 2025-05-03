@@ -342,7 +342,7 @@ def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:l
         theta_init = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
     
     if theta_final is None:
-        theta_final = [np.pi/6, -np.pi/6, np.pi/3, -np.pi/4, np.pi/3, np.pi/4]
+        theta_final = [np.pi/6, -np.pi/6, 3*np.pi/2, -np.pi/4, np.pi/3, np.pi/4]
 
     if theta_dot_max is None:
         theta_dot_max = [1] * 6
