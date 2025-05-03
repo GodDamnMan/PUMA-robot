@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 
 
 
-
+#first h/w
 robot_line = None
 frame_artists = []
 def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
@@ -100,6 +100,11 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
     plt.tight_layout()
     plt.show()
 
+
+
+
+
+#second h/w
 def second_task_render(*args, basis_visible:bool = True, Robot:StatefulPUMA = None):
     # Настройка 3D-графика
     fig, ax = None, None
@@ -339,6 +344,10 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta_init:list = None, ee_do
     plt.show()
 
 
+
+
+
+#third h/w
 def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:list = None, theta_dot_max:list = None, theta_ddot_max:list = None, compute_error:bool = True):
     if theta_init is None:
         theta_init = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
@@ -376,7 +385,6 @@ def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:l
         plt.ylabel("error(m)")
         plt.grid(True)
         plt.show()
-
 
 def polynomial_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:list = None):
     if theta_init is None:
