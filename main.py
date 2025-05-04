@@ -449,8 +449,8 @@ if __name__ == '__main__':
     
     ''' choose one type of render '''
     ''' moving chaoticly, w/ workspace '''
-    # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
-    # first_task_render(fig, ax, Robot = Robot)
+    fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
+    first_task_render(fig, ax, Robot = Robot)
 
     ''' moving chaoticly, w/o workspace '''
     # first_task_render(Robot = Robot)
