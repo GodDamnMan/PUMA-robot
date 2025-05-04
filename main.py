@@ -34,46 +34,86 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
         ax.set_zlabel('Z')
         ax.set_title('PUMA 560 Robot Animation')
 
-
     def init():
         global robot_line
         robot_line, = ax.plot([], [], [], 'ko-', lw=3, markersize=8)
         return [robot_line]
 
-    # Функция анимации
+    x_start = np.array([0.4, 0.0, 0.5, 0, np.pi/2, 0])
+    x_end = np.array([0.2, 0.3, 0.7, 0, np.pi/2, 0])
+    
+    ax.plot([x_start[0], x_end[0]],
+            [x_start[1], x_end[1]],
+            [x_start[2], x_end[2]],
+            'b-', linewidth=1.5, label='Goal Line')
+    
+    theta_start = Robot.inverse_kinematics(x_start)
+    theta_end = Robot.inverse_kinematics(x_end)
+    
+    theta_dot_max = [1.0] * 6
+    theta_ddot_max = [2.0] * 6
+    
+    v_max = 0.5
+    a_max = 1.0
+    dt = 1/120
+    
+    distance = np.linalg.norm(x_end[:3] - x_start[:3])
+    t_acc = v_max / a_max
+    d_acc = 0.5 * a_max * t_acc**2
+    
+    if 2 * d_acc < distance:
+        t_const = (distance - 2 * d_acc) / v_max
+        t_total = 2 * t_acc + t_const
+    else:
+        t_acc = np.sqrt(distance / a_max)
+        t_const = 0
+        t_total = 2 * t_acc
+    
+    t = np.arange(0, t_total, dt)
+    
+    cartesian_trajectory = []
+    joint_trajectory = []
+    
+    for ti in t:
+        if ti < t_acc:
+            s = 0.5 * a_max * ti**2
+        elif ti < (t_acc + t_const):
+            s = d_acc + v_max * (ti - t_acc)
+        else:
+            t_dec = ti - t_acc - t_const
+            s = d_acc + (t_const * v_max) + v_max * t_dec - 0.5 * a_max * t_dec**2
+        
+        ratio = s / distance
+        pos = x_start[:3] + (x_end[:3] - x_start[:3]) * ratio
+        target = np.concatenate([pos, x_start[3:]])
+
+        theta = Robot.inverse_kinematics(target)
+        cartesian_trajectory.append(target)
+        joint_trajectory.append(theta)
+    
+    ee_traj = np.array([Robot.forward_kinematics(theta)[:3] for theta in joint_trajectory])
+    ax.plot(ee_traj[:, 0], ee_traj[:, 1], ee_traj[:, 2], 'r--', linewidth=1.5, label='Actual')
+    ax.legend()
+
     def update(frame):
         global robot_line, frame_artists
-        dt = frame * 0.05
-        q2 = np.pi/2 * np.sin(dt)
-        q1 = np.pi * np.sin(dt)
-        q3 = np.pi/2 + np.sin(5*dt)
-        theta = [0, 0, 0, dt, dt, 0]
-        # theta = [0, 0, np.pi/2, 0, 0, 0]
+        theta = joint_trajectory[frame]
         points = Robot.forward_kinematics_points(theta)
 
-
-        # Соединяем точки
         x = [p[0] for p in points]
         y = [p[1] for p in points]
         z = [p[2] for p in points]
-
         robot_line.set_data(x, y)
         robot_line.set_3d_properties(z)
 
-
-
         if basis_visible:
-            # Очистка предыдущих кадров
             for artist in frame_artists:
                 artist.remove()
             frame_artists = []
             basises = Robot._get_basises(theta)
-            # Отрисовка систем координат
             scale = 0.2
             for i, basis in enumerate(basises):
                 origin = basis[:3, 3]
-
-                # Создаем новые линии для осей
                 x_line, = ax.plot([origin[0], origin[0] + basis[0,0]*scale],
                                  [origin[1], origin[1] + basis[1,0]*scale],
                                  [origin[2], origin[2] + basis[2,0]*scale], 'r-', lw=2)
@@ -83,24 +123,17 @@ def first_task_render(*args, basis_visible:bool = True, Robot:PUMA = None):
                 z_line, = ax.plot([origin[0], origin[0] + basis[0,2]*scale],
                                  [origin[1], origin[1] + basis[1,2]*scale],
                                  [origin[2], origin[2] + basis[2,2]*scale], 'b-', lw=2)
-
-                # Добавляем подписи
                 label = ax.text(origin[0], origin[1], origin[2], f'J{i}', fontsize=10)
-
                 frame_artists.extend([x_line, y_line, z_line, label])
-
 
         fig.canvas.draw()
         return [robot_line] + frame_artists
 
-    # Запуск анимации
-    ani = FuncAnimation(fig, update, frames=200, init_func=init,
-                        blit=True, interval=50, repeat=True)
+    ani = FuncAnimation(fig, update, frames=len(joint_trajectory),
+                        init_func=init, blit=True, interval=50, repeat=True)
 
     plt.tight_layout()
     plt.show()
-
-
 
 
 
