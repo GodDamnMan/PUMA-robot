@@ -4,6 +4,7 @@ import numpy as np
 
 from PUMA import PUMA, StatefulPUMA
 import Poly as pl
+from symbols import compute_tau_numeric
 
 
 import warnings
@@ -381,12 +382,15 @@ def plot_by_ee_movement(Robot:StatefulPUMA = None, theta_init:list = None, ee_do
 
 
 #third h/w
-def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:list = None, theta_dot_max:list = None, theta_ddot_max:list = None, compute_error:bool = True):
-    if theta_init is None:
-        theta_init = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
-    
-    if theta_final is None:
-        theta_final = [np.pi/6, -np.pi/6, np.pi, -np.pi/4, np.pi/3, np.pi/4]
+def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:list = None, theta_dot_max:list = None, theta_ddot_max:list = None, compute_error:bool = True, all_joints_0_to_pi:bool = False):
+    if all_joints_0_to_pi:
+        theta_init = [0] * 6
+        theta_final = [np.pi] * 6
+    else:
+        if theta_init is None:
+            theta_init = [0, -np.pi/4, np.pi/4, 0, np.pi/6, 0]
+        if theta_final is None:
+            theta_final = [np.pi/6, -np.pi/6, np.pi, -np.pi/4, np.pi/3, np.pi/4]
 
     if theta_dot_max is None:
         theta_dot_max = [1] * 6
@@ -396,7 +400,6 @@ def trapezoidal_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:l
 
     t, q_disc, Q_dot, Q_ddot = Robot.pos_vel_acc(theta_init, theta_final, theta_dot_max, theta_ddot_max, dt = 1/120)
     Robot.plot_trajectories(t, q_disc, Q_dot, Q_ddot)
-
 
     if compute_error:
         _, q_cont, _, _ = Robot.pos_vel_acc(theta_init, theta_final, theta_dot_max, theta_ddot_max, dt = 1/120/100)
@@ -430,10 +433,11 @@ def polynomial_in_joint_space(Robot:PUMA, theta_init:list = None, theta_final:li
     Robot.plot_trajectories(a['time'], a['joint_trajectory'], a['joint_velocity'], a['joint_acceleration'])
 
 
-
-
 if __name__ == '__main__':
     Robot = StatefulPUMA()
+
+    # fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
+    # first_task_render(fig, ax, Robot = Robot)
     
 
     # Robot.inv_kinematics_tester()
@@ -443,14 +447,42 @@ if __name__ == '__main__':
     # plot_by_ee_movement(Robot)
     
 
-    trapezoidal_in_joint_space(Robot)
-    polynomial_in_joint_space(Robot)
+    # trapezoidal_in_joint_space(Robot, all_joints_0_to_pi=True)
+    # polynomial_in_joint_space(Robot)
+
+    theta_dot_max = [1.0] * 6
+    theta_ddot_max = [2.0] * 6
+    t, Q, Q_dot, Q_ddot = Robot.pos_vel_acc([0]*6, [np.pi]*6, theta_dot_max, theta_ddot_max, dt=1/120)
+
+    torques = []
+    for i in range(len(t)):
+        q = Q[i]
+        dq = Q_dot[i]
+        ddq = Q_ddot[i]
+
+        q7 = np.zeros(7)
+        q7[:6] = q
+        dq7 = np.zeros(7)
+        dq7[:6] = dq
+        ddq7 = np.zeros(7)
+        ddq7[:6] = ddq
+        tau = compute_tau_numeric(q7, dq7, ddq7)
+        torques.append(tau[:6])
+    torques = np.array(torques)
+
+    plt.figure(figsize=(12, 8))
+    for i in range(torques.shape[1]):
+        plt.plot(t, torques[:, i], label=f'Joint {i+1}')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Torque (Nm)')
+    plt.title('Joint Torques Over Time')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
     
     ''' choose one type of render '''
     ''' moving chaoticly, w/ workspace '''
-    fig, ax = Robot.plot_workspace(samples=1000, show_plot=False)
-    first_task_render(fig, ax, Robot = Robot)
 
     ''' moving chaoticly, w/o workspace '''
     # first_task_render(Robot = Robot)
@@ -458,6 +490,3 @@ if __name__ == '__main__':
     ''' moving by Jacobian '''
     # second_task_render(Robot=Robot)
 
-
-    
-    
