@@ -450,7 +450,7 @@ def forward_dynamics(Robot:PUMA):
         ddq = Q_ddot[i]
 
         tau = solve_forward_dynamics(q, dq, ddq)
-        print(tau)
+        #print(tau)
         torques.append(tau)
 
     torques = np.array(torques)
